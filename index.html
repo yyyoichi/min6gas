@@ -1,0 +1,62 @@
+<head>
+  <base target="_top">
+</head>
+<div id="box"></div>
+
+<script>
+  let orders;
+  let stopWatch;
+  let waitingClient = 0;//処理の終了を把握する
+  // サーバ側のgetOrder関数を呼び出し、成功したらreqestOrder()
+  google.script.run.withSuccessHandler(reqestOrder).withFailureHandler(missFunc).getOrders();
+  function reqestOrder(json) {
+    //グローバルに変数に
+    orders = JSON.parse(json);
+    //調理開始ボタンを作成
+    const button = document.createElement('button');//料理開始ボタンを作成
+    button.textContent = '調理開始';
+    button.setAttribute('id', 'start-button');
+    button.addEventListener('click', startCooking);//クリック時にstartCooking関数を実行
+    const box = document.getElementById('box');
+    box.appendChild( button );//Box要素に入れる
+  }
+
+  function startCooking(){
+    stopWatch = new Date();
+    document.getElementById('start-button').style.visibility = 'hidden';
+    const timeInterval = 1000;//1秒間隔で実行
+    let i = 0; 
+    const limit = orders.length;
+    waitingClient = limit;
+    const timer = setInterval (() =>{
+      const order = orders[i];//1つの注文を取得
+      const [cookingTime, material] = order;//データの中身
+      const data = { i, cookingTime, material};//サーバ側に渡す値
+      console.log(data)
+      //GASにデータを渡し、更新スタート
+      google.script.run.withSuccessHandler(setState).withFailureHandler(missFunc).cooking(JSON.stringify(data));
+      i++;
+      if(i===limit) clearInterval(timer);//処理終了
+    },timeInterval);
+  }
+
+  function setState(text){
+    const p = document.createElement('p');//テキストで表示する
+    p.textContent = text;
+    const box = document.getElementById('box');
+    box.appendChild( p );//Box要素に入れる
+    waitingClient--;//調理数を一つ減らす
+    if (waitingClient===0){
+      const time = new Date()- stopWatch;
+      return setState(time +"㎜秒");
+    } 
+  }
+
+  function missFunc(){
+    const p = document.createElement('p');//完成した料理をテキストで表示する
+    p.textContent = 'error';
+    p.style.color = 'red';
+    const box = document.getElementById('box');
+    box.appendChild( p );//Box要素に入れる
+  }
+</script>
